@@ -1,0 +1,6 @@
+{
+  "name": "BetStatistica Pro - Analisi Quote & Database Calcio",
+  "description": "Piattaforma di analisi quote Sisal e database storico con modelli Dixon-Coles, Poisson Bivariata, Money Management Masaniello con Win Rate e simulazione Monte Carlo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
