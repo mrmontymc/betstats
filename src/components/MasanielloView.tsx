@@ -120,6 +120,7 @@ export const MasanielloView: React.FC<MasanielloViewProps> = ({
   const [showGuide, setShowGuide] = useState<boolean>(false);
   const [showNewProgModal, setShowNewProgModal] = useState<boolean>(false);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState<boolean>(false);
+  const [progressionToDelete, setProgressionToDelete] = useState<MasanielloProgression | null>(null);
 
   // Stato per rinominare inline una progressione
   const [editingProgId, setEditingProgId] = useState<string | null>(null);
@@ -251,21 +252,32 @@ export const MasanielloView: React.FC<MasanielloViewProps> = ({
     persistProgressions(updated, clonedProg.id);
   };
 
-  // Eliminazione progressione
-  const handleDeleteProgression = (id: string, e?: React.MouseEvent) => {
+  // Richiesta eliminazione progressione (apre modale di conferma senza window.confirm)
+  const handleRequestDeleteProgression = (prog: MasanielloProgression, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (progressions.length <= 1) {
-      alert('Deve essere presente almeno una progressione attiva.');
-      return;
-    }
-    const targetProg = progressions.find(p => p.id === id);
-    if (!window.confirm(`Sei sicuro di voler eliminare la progressione "${targetProg?.name || id}"?`)) {
-      return;
-    }
+    setProgressionToDelete(prog);
+  };
 
-    const updated = progressions.filter(p => p.id !== id);
-    const nextActiveId = activeProgressionId === id ? updated[0].id : activeProgressionId;
+  // Esecuzione eliminazione effettiva
+  const handleConfirmDeleteProgression = () => {
+    if (!progressionToDelete) return;
+    const idToDelete = progressionToDelete.id;
+    if (progressions.length <= 1) {
+      // Se è l'unica rimasta, ripristina una progressione pulita
+      const freshProg = createNewProgression('Nuova Progressione', {
+        bankroll: 100,
+        totalEvents: 10,
+        referenceWinRate: 66,
+        defaultOdds: 1.80,
+      });
+      persistProgressions([freshProg], freshProg.id);
+      setProgressionToDelete(null);
+      return;
+    }
+    const updated = progressions.filter(p => p.id !== idToDelete);
+    const nextActiveId = activeProgressionId === idToDelete ? updated[0].id : activeProgressionId;
     persistProgressions(updated, nextActiveId);
+    setProgressionToDelete(null);
   };
 
   // Inizio rinomina inline
@@ -669,15 +681,17 @@ export const MasanielloView: React.FC<MasanielloViewProps> = ({
                   </span>
                 )}
 
-                {/* Delete button (se > 1) */}
-                {progressions.length > 1 && !isEditing && (
+                {/* Delete button (bidoncino) */}
+                {!isEditing && (
                   <button
                     type="button"
-                    onClick={e => handleDeleteProgression(prog.id, e)}
-                    title="Elimina progressione"
-                    className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-rose-400 p-0.5 transition-opacity"
+                    onClick={e => handleRequestDeleteProgression(prog, e)}
+                    title={progressions.length > 1 ? `Elimina progressione "${prog.name}"` : 'Gestisci o azzera progressione'}
+                    className={`p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/20 transition-all cursor-pointer ${
+                      isActive ? 'opacity-100 text-rose-300' : 'opacity-60 hover:opacity-100'
+                    }`}
                   >
-                    <Trash2 className="w-3 h-3" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
@@ -1226,23 +1240,20 @@ export const MasanielloView: React.FC<MasanielloViewProps> = ({
             <div className="space-y-2 pt-2">
               <button
                 type="button"
-                onClick={handleExecuteResetProgressOnly}
-                className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-semibold text-xs transition-colors cursor-pointer"
+                onClick={handleExecuteResetAllAppMatches}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs transition-colors cursor-pointer shadow-md"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Azzera Ciclo e Partite negli Step ({activeProgression.name})</span>
+                <span>Azzera Tutto (Ciclo Masaniello + Partite Caricate nel Palinsesto)</span>
               </button>
 
-              {onClearAllMatches && (
-                <button
-                  type="button"
-                  onClick={handleExecuteResetAllAppMatches}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 font-semibold text-xs transition-colors cursor-pointer border border-rose-500/30"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Azzera Ciclo + Svuota Tutte le Partite del Palinsesto & Storico</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleExecuteResetProgressOnly}
+                className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs transition-colors cursor-pointer border border-slate-700"
+              >
+                <span>Azzera Solo gli Step del Ciclo Corrente ({activeProgression.name})</span>
+              </button>
 
               <button
                 type="button"
@@ -1250,6 +1261,63 @@ export const MasanielloView: React.FC<MasanielloViewProps> = ({
                 className="w-full py-1.5 text-xs text-slate-400 hover:text-white transition-colors cursor-pointer text-center"
               >
                 Annulla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODALE CONFERMA ELIMINAZIONE PROGRESSIONE (TASTO BIDONE) */}
+      {progressionToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md shadow-2xl p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-lg bg-rose-500/20 text-rose-400 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  {progressions.length > 1 ? 'Elimina Progressione Masaniello' : 'Azzera e Ricrea Progressione'}
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Progressione: <strong className="text-white">{progressionToDelete.name}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-slate-950 rounded-lg border border-slate-800 space-y-2 text-xs text-slate-300">
+              <div className="flex justify-between items-center text-slate-400">
+                <span>Cassa Iniziale:</span>
+                <span className="font-mono text-white font-bold">{progressionToDelete.config.bankroll.toFixed(2)} €</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-400">
+                <span>Eventi / Win Rate:</span>
+                <span className="font-mono text-emerald-400 font-bold">
+                  {progressionToDelete.config.totalEvents} eventi ({progressionToDelete.config.referenceWinRate}% WR atteso)
+                </span>
+              </div>
+              <p className="text-[11px] text-rose-300/90 pt-1.5 border-t border-slate-800/80">
+                {progressions.length > 1
+                  ? 'Sei sicuro di voler eliminare questa progressione? I dati e gli step inseriti verranno rimossi definitivamente dal portafoglio.'
+                  : "Questa è l'unica progressione attiva nel portafoglio. Confermando, verrà reimpostata con una nuova progressione pulita a parametri di default."}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setProgressionToDelete(null)}
+                className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+              >
+                Annulla
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDeleteProgression}
+                className="px-4 py-2 text-xs font-bold rounded-lg bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{progressions.length > 1 ? 'Elimina Definitivamente' : 'Azzera e Ricrea'}</span>
               </button>
             </div>
           </div>

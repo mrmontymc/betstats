@@ -57,14 +57,14 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
   };
 
   const processFile = async (file: File): Promise<MultiFileItem> => {
-    const text = await file.text();
-    const detectedType = detectCsvType(text);
-
     try {
+      const text = await file.text();
+      const detectedType = detectCsvType(text);
+
       if (detectedType === 'sisal') {
         const res = parseSisalCsv(text);
         return {
-          id: `${file.name}_${file.size}_${Date.now()}`,
+          id: `${file.name}_${file.size}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           file,
           name: file.name,
           size: file.size,
@@ -77,7 +77,7 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
       } else {
         const res = parseHistoricalFootballCsv(text, file.name);
         return {
-          id: `${file.name}_${file.size}_${Date.now()}`,
+          id: `${file.name}_${file.size}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           file,
           name: file.name,
           size: file.size,
@@ -90,14 +90,14 @@ export const FileUploadModal: React.FC<FileUploadModalProps> = ({
       }
     } catch (err) {
       return {
-        id: `${file.name}_${file.size}_${Date.now()}`,
+        id: `${file.name}_${file.size}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
         file,
         name: file.name,
         size: file.size,
-        detectedType,
+        detectedType: 'historical',
         status: 'error',
         parsedCount: 0,
-        errorMessage: (err as Error).message,
+        errorMessage: (err as Error).message || 'Errore di lettura file',
       };
     }
   };

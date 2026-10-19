@@ -559,7 +559,8 @@ export interface Match1X2AnalysisSummary {
 export function getMatch1X2SingleOddsStats(
   sisalMatch: SisalMatch,
   historicalMatches: HistoricalMatch[],
-  tolerance = 0.05
+  tolerance = 0.05,
+  includeSamples = true
 ): Match1X2AnalysisSummary {
   const q1 = sisalMatch.q1;
   const qX = sisalMatch.qX;
@@ -578,43 +579,52 @@ export function getMatch1X2SingleOddsStats(
   const dMatches: HistoricalMatch[] = [];
   const aMatches: HistoricalMatch[] = [];
 
+  let hMatchesCount = 0;
+  let dMatchesCount = 0;
+  let aMatchesCount = 0;
+
   let hWins = 0;
   let dWins = 0;
   let aWins = 0;
 
   for (let i = 0; i < historicalMatches.length; i++) {
     const m = historicalMatches[i];
+    if (m.hasImpossibleOdds) continue;
+
     const oddH = m.b365H || m.avgH;
     const oddD = m.b365D || m.avgD;
     const oddA = m.b365A || m.avgA;
 
     if (oddH && oddH > 1.001 && Math.abs(oddH - q1) <= tolerance) {
-      hMatches.push(m);
+      hMatchesCount++;
+      if (includeSamples) hMatches.push(m);
       if (m.ftr === 'H') hWins++;
     }
     if (oddD && oddD > 1.001 && Math.abs(oddD - qX) <= tolerance) {
-      dMatches.push(m);
+      dMatchesCount++;
+      if (includeSamples) dMatches.push(m);
       if (m.ftr === 'D') dWins++;
     }
     if (oddA && oddA > 1.001 && Math.abs(oddA - q2) <= tolerance) {
-      aMatches.push(m);
+      aMatchesCount++;
+      if (includeSamples) aMatches.push(m);
       if (m.ftr === 'A') aWins++;
     }
   }
 
-  const hRate = hMatches.length >= 2 ? Math.round((hWins / hMatches.length) * 1000) / 10 : (hMatches.length === 1 ? Math.round((hWins / 1) * 100) : 0);
-  const dRate = dMatches.length >= 2 ? Math.round((dWins / dMatches.length) * 1000) / 10 : (dMatches.length === 1 ? Math.round((dWins / 1) * 100) : 0);
-  const aRate = aMatches.length >= 2 ? Math.round((aWins / aMatches.length) * 1000) / 10 : (aMatches.length === 1 ? Math.round((aWins / 1) * 100) : 0);
+  const hRate = hMatchesCount >= 2 ? Math.round((hWins / hMatchesCount) * 1000) / 10 : (hMatchesCount === 1 ? Math.round((hWins / 1) * 100) : 0);
+  const dRate = dMatchesCount >= 2 ? Math.round((dWins / dMatchesCount) * 1000) / 10 : (dMatchesCount === 1 ? Math.round((dWins / 1) * 100) : 0);
+  const aRate = aMatchesCount >= 2 ? Math.round((aWins / aMatchesCount) * 1000) / 10 : (aMatchesCount === 1 ? Math.round((aWins / 1) * 100) : 0);
 
   const stat1: SingleOutcomeStat = {
     outcome: '1',
     outcomeLabel: 'Segno 1 (Casa)',
     odd: q1,
     tolerance,
-    matchesCount: hMatches.length,
+    matchesCount: hMatchesCount,
     winsCount: hWins,
     winRatePct: hRate,
-    isHighWinRate: hRate >= 66.0 && hMatches.length >= 2,
+    isHighWinRate: hRate >= 66.0 && hMatchesCount >= 2,
     sampleMatches: hMatches,
   };
 
@@ -623,10 +633,10 @@ export function getMatch1X2SingleOddsStats(
     outcomeLabel: 'Segno X (Pareggio)',
     odd: qX,
     tolerance,
-    matchesCount: dMatches.length,
+    matchesCount: dMatchesCount,
     winsCount: dWins,
     winRatePct: dRate,
-    isHighWinRate: dRate >= 66.0 && dMatches.length >= 2,
+    isHighWinRate: dRate >= 66.0 && dMatchesCount >= 2,
     sampleMatches: dMatches,
   };
 
@@ -635,10 +645,10 @@ export function getMatch1X2SingleOddsStats(
     outcomeLabel: 'Segno 2 (Trasferta)',
     odd: q2,
     tolerance,
-    matchesCount: aMatches.length,
+    matchesCount: aMatchesCount,
     winsCount: aWins,
     winRatePct: aRate,
-    isHighWinRate: aRate >= 66.0 && aMatches.length >= 2,
+    isHighWinRate: aRate >= 66.0 && aMatchesCount >= 2,
     sampleMatches: aMatches,
   };
 
@@ -695,7 +705,7 @@ export function evaluateMatchHighWinRate1X2(
   historicalMatches: HistoricalMatch[],
   tolerance = 0.05
 ): SisalMatch['highWinRate1X2'] {
-  const summary = getMatch1X2SingleOddsStats(sisalMatch, historicalMatches, tolerance);
+  const summary = getMatch1X2SingleOddsStats(sisalMatch, historicalMatches, tolerance, false);
   return summary.highWinRateAlert;
 }
 
